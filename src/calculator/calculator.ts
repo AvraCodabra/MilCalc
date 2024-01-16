@@ -8,12 +8,20 @@ import {
 import { DateRange } from '../store/types'
 import {
   COMBAT_RATE,
-  FAMILY_CARE_COMPENSATION,
   GRANT_DAILY_RATE,
-  MENTAL_HEALTH_COMPENSATION,
   NON_COMBAT_RATE,
-  SPECIAL_NEEDS_COMPENSATION,
 } from './constants'
+import {
+  getAdditionalReward2023,
+  getCombatGrant2024,
+  getCouplesTherapyGrant,
+  getExtendedFamilyGrant2023,
+  getExtendedHomeEconomicsGrant, getExtendedPersonalExpensesGrant,
+  getPersonalExpensesReward2023,
+  getSpecialFamilyGrant,
+  getSpecialReward2023, getTherapyGrant,
+  getVacationVoucher,
+} from './grants'
 
 export const calculateVacation = (
   totalDays: number,
@@ -207,36 +215,33 @@ export const calculateCompensation = (inputs: {
 
   const daysInWar = calculateDays(dateRanges)
 
-  const {
-    totalSpecialDays,
-    totalExtended,
-    totalAdditional,
-    totalDaysStraight,
-  } = specialGrantCalculation(
-    serviceBefore,
-    daysInWar,
-    isDaysStraight || isDaysStraightInWar
-  )
-
-  let totalPerMonth = calculateMonthlyCompensation(
-    isCombat,
-    Math.max(daysInWar, 0)
-  )
-
   const daysWarIn2023 = getTotalDaysIn2023(dateRanges)
 
-  let totalOperation24 = operation24Calculation(operation24Days)
-  let totalMoreThan45 = isCombat && daysInWar > 45 ? 2500 : 1250
+  const profile = {
+    isCombat : isCombat,
+    haChildrenUnder14: hasChildren,
+    hasSpecialChildren: hasChildrenSpecial,
+    isCommander: false,
+    isOld: false,
+  }
 
-  let totalFromChildren = hasChildren
-    ? calculateChildrenCompensation(isCombat, daysWarIn2023)
-    : 0
+  const totalSpecialDays = getSpecialReward2023(daysWarIn2023 + serviceBefore).amount
+  const totalExtended = 0 // as it included in the 'totalSpecialDays' also for non_combat
+  const totalAdditional = getAdditionalReward2023(daysWarIn2023 + serviceBefore).amount
+  const totalDaysStraight = getPersonalExpensesReward2023(daysWarIn2023 + serviceBefore,isDaysStraight || isDaysStraightInWar).amount
 
-  let totalVacation = calculateVacation(daysInWar, hasChildren, isCombat)
-  let totalSpecialChildren = hasChildrenSpecial ? SPECIAL_NEEDS_COMPENSATION : 0
+  let totalPerMonth = getExtendedPersonalExpensesGrant(daysWarIn2023, profile).amount
 
-  let totalMental = daysInWar > 30 ? MENTAL_HEALTH_COMPENSATION : 0
-  let totalFamilyCare = FAMILY_CARE_COMPENSATION
+  let totalOperation24 = getCombatGrant2024(operation24Days).amount
+  let totalMoreThan45 = getExtendedHomeEconomicsGrant(daysInWar, profile).amount
+
+  let totalFromChildren = getExtendedFamilyGrant2023(daysWarIn2023, profile).amount
+
+  let totalVacation = getVacationVoucher(daysInWar, profile).amount
+  let totalSpecialChildren = getSpecialFamilyGrant(daysInWar, profile).amount
+
+  let totalMental = getCouplesTherapyGrant(daysInWar).amount
+  let totalFamilyCare = getTherapyGrant(daysInWar).amount
 
   let totalDedication = 0
 
